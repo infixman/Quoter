@@ -31,9 +31,12 @@ jobs:
       - name: Log into registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
 
+      - name: Build Image
+        run: docker build . --file Quoter/Quoter_Dockerfile --tag quoter:laetst
+          
       - name: Push image
         run: |
-          IMAGE_ID=docker.pkg.github.com/$REPOSITORY_NAME/$IMAGE_NAME
+          IMAGE_ID=docker.pkg.github.com/${{ github.actor }}/$REPOSITORY_NAME/$IMAGE_NAME
 
           # Strip git ref prefix from version
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -47,6 +50,5 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
 
-          docker build . --file Quoter/Quoter_Dockerfile --tag $IMAGE_ID:$VERSION
+          docker tag quoter:laetst $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
-          docker push $IMAGE_ID:latest
