@@ -128,7 +128,7 @@ namespace Quoter.Service
 
         private string GetPinMessage()
         {
-            return $"`{(GetLatestUsdRate() * 100).ToString().TrimEnd('0')}`% | {Environment.NewLine}{GetPinCryptoPrice()}{DateTime.Now:MM/dd HH:mm:ss}";
+            return $"`{(GetLatestUsdRate() * 100).ToString().TrimEnd('0')}`% | {Environment.NewLine}{GetPinCryptoPrice()}{DateTime.UtcNow.AddHours(8):MM/dd HH:mm:ss}";
         }
 
         private string GetPinCryptoPrice()
