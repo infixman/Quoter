@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Quoter.Class;
 using Telegram.Bot.Args;
@@ -16,12 +17,15 @@ namespace Quoter.Service
     public class BotHostedService : IHostedService
     {
         private readonly IBotService _bot;
+        private readonly BotConfiguration _config;
         private CancellationTokenSource _tokenSource;
         private readonly string _helpPriceMsg = $"`/price [幣種]` - 查看幣種幣種USDT價格{Environment.NewLine}例如: `/price btc`{Environment.NewLine}{Environment.NewLine}`/price [幣種A] [幣種B]` - 查看幣種A的幣種B價格{Environment.NewLine}例如: `/price eth btc`{Environment.NewLine}{Environment.NewLine}`/price` 也提供簡單指令 `/p` ";
 
-        public BotHostedService(IBotService botService)
+        public BotHostedService(IBotService botService,
+            BotConfiguration config)
         {
             _bot = botService;
+            _config = config;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -44,15 +48,22 @@ namespace Quoter.Service
         {
             var receiveMessageText = e.Message.Text.ToLower();
 
+            if (!receiveMessageText.StartsWith("/")
+                && receiveMessageText.Contains("@")
+                && !receiveMessageText.Contains(_config.BotId))
+                return;
+
             if (receiveMessageText.Equals("/pin")
-            && (e.Message.Chat.Type == ChatType.Group
-                || e.Message.Chat.Type == ChatType.Supergroup))
-            {
+                && (e.Message.Chat.Type == ChatType.Group
+                    || e.Message.Chat.Type == ChatType.Supergroup))
+            {   
                 var admins = await _bot.Client.GetChatAdministratorsAsync(e.Message.Chat.Id);
                 var adminIds = admins.Select(x => x.User.Id).ToArray();
                 if (adminIds.Contains(e.Message.From.Id)
                     && adminIds.Contains(_bot.Me.Id))
                 {
+                    Console.WriteLine($"Chat:{e.Message.Chat.LastName} {e.Message.Chat.FirstName}({e.Message.Chat.Id}),User:{e.Message.From.LastName} {e.Message.From.FirstName} ({e.Message.From.Id}) Want Pin, He/She is Admin, Pined.");
+
                     var sendMessage = await _bot.Client.SendTextMessageAsync(e.Message.Chat.Id, GetPinMessage(), ParseMode.Markdown);
                     try
                     {
@@ -63,6 +74,10 @@ namespace Quoter.Service
                     {
                         //大概是沒權限吧，ignored
                     }
+                }
+                else
+                {
+                    Console.WriteLine($"Chat:{e.Message.Chat.LastName} {e.Message.Chat.FirstName}({e.Message.Chat.Id}),User:{e.Message.From.LastName} {e.Message.From.FirstName} ({e.Message.From.Id}) Want Pin, He/She is not Admin!!!");
                 }
             }
             else if (receiveMessageText.StartsWith("/price")
@@ -123,6 +138,8 @@ namespace Quoter.Service
             if (splitData.Length < 10)
                 return 0;
 
+            Console.WriteLine($"splitData[9].ToDecimal(): {splitData[9]}");
+
             return Convert.ToDecimal(splitData[9]);
         }
 
@@ -145,7 +162,9 @@ namespace Quoter.Service
 
             foreach (var symbol in symbols)
             {
-                returnObj += $"{symbol.Replace("USDT", string.Empty)} `{Convert.ToDecimal(GetPriceFromBinance(symbol, "USDT"))}` | {Environment.NewLine}";
+                var price = GetPriceFromBinance(symbol, "USDT").Split(' ').First();
+                Console.WriteLine($"symbol.price.ToDecimal: {symbol} | {price}");
+                returnObj += $"{symbol.Replace("USDT", string.Empty)} `{Convert.ToDecimal(price)}` | {Environment.NewLine}";
                 Thread.Sleep(200);
             }
 
@@ -166,7 +185,7 @@ namespace Quoter.Service
                     var json = JsonConvert.DeserializeObject<CryptoPrice>(downloadString);
                     if (string.IsNullOrWhiteSpace(json.msg))
                     {
-                        returnObj = $"{json.price.TrimEnd('0')} {toSymbol.ToUpper()}";
+                        returnObj = $"{json.price.TrimEnd('0').TrimEnd('.')} {toSymbol.ToUpper()}";
                     }
                 }
             }
