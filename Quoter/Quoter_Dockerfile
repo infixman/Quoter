@@ -2,6 +2,7 @@ FROM mcr.microsoft.com/dotnet/core/sdk:3.0 AS build
 WORKDIR /src
 
 COPY . /src
+RUN ls -R
 RUN dotnet build /src/Quoter.csproj -c Release -o /app
 
 FROM build AS publish
