@@ -48,7 +48,7 @@ namespace Quoter.Service
         {
             var receiveMessageText = e.Message.Text.ToLower();
 
-            if (!receiveMessageText.StartsWith("/")
+            if (receiveMessageText.StartsWith("/")
                 && receiveMessageText.Contains("@")
                 && !receiveMessageText.Contains(_config.BotId))
                 return;
@@ -138,7 +138,7 @@ namespace Quoter.Service
             if (splitData.Length < 10)
                 return 0;
 
-            Console.WriteLine($"splitData[9].ToDecimal(): {splitData[9]}");
+            //Console.WriteLine($"splitData[9].ToDecimal(): {splitData[9]}");
 
             return Convert.ToDecimal(splitData[9]);
         }
@@ -163,7 +163,7 @@ namespace Quoter.Service
             foreach (var symbol in symbols)
             {
                 var price = GetPriceFromBinance(symbol, "USDT").Split(' ').First();
-                Console.WriteLine($"symbol.price.ToDecimal: {symbol} | {price}");
+                //Console.WriteLine($"symbol.price.ToDecimal: {symbol} | {price}");
                 returnObj += $"{symbol.Replace("USDT", string.Empty)} `{Convert.ToDecimal(price)}` | {Environment.NewLine}";
                 Thread.Sleep(200);
             }
