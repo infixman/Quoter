@@ -2,10 +2,10 @@ FROM mcr.microsoft.com/dotnet/core/sdk:3.0 AS build
 WORKDIR /src
 
 COPY . /src
-RUN dotnet build ./src/Quoter.csproj -c Release -o /app
+RUN dotnet build ./src/Quoter/Quoter.csproj -c Release -o /app
 
 FROM build AS publish
-RUN dotnet publish ./src/Quoter.csproj -c Release -o /app
+RUN dotnet publish ./src/Quoter/Quoter.csproj -c Release -o /app
 
 FROM mcr.microsoft.com/dotnet/core/aspnet:3.0 AS runtime
 WORKDIR /app
