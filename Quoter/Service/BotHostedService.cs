@@ -50,7 +50,7 @@ namespace Quoter.Service
 
             if (receiveMessageText.StartsWith("/")
                 && receiveMessageText.Contains("@")
-                && !receiveMessageText.Contains(_config.BotId))
+                && !receiveMessageText.Contains(_config.BotId.ToLower()))
                 return;
 
             if (receiveMessageText.Equals("/pin")
@@ -102,8 +102,20 @@ namespace Quoter.Service
                     var symbol = receiveMessageText
                         .Replace("/p ", string.Empty)
                         .Replace("/price ", string.Empty)
+                        .Replace($"/p{_config.BotId.ToLower()} ", string.Empty)
+                        .Replace($"/price{_config.BotId.ToLower()} ", string.Empty)
                         .Replace(" ", string.Empty);
-                    sendMessageText = $"{GetPriceFromBinance(symbol, receiveMessageText.Split(' ').Last().ToUpper())}";
+
+                    if ((symbol.ToUpper().StartsWith("CRO") 
+                        || symbol.ToUpper().StartsWith("MCO"))
+                        && CheckCryptoHasSymbols(symbol))
+                    {
+                        sendMessageText = $"{GetPriceFromCryptoCom(symbol, receiveMessageText.Split(' ').Last().ToUpper())}";
+                    }
+                    else
+                    {
+                        sendMessageText = $"{GetPriceFromBinance(symbol, receiveMessageText.Split(' ').Last().ToUpper())}";
+                    }
                 }
                 else
                 {
@@ -115,6 +127,30 @@ namespace Quoter.Service
                     ParseMode.Markdown,
                     replyToMessageId: e.Message.MessageId);
             }
+        }
+
+        private bool CheckCryptoHasSymbols(string symbol)
+        {
+            try
+            {
+                var wc = new WebClient();
+                var downloadString = wc.DownloadString("https://api.crypto.com/v1/symbols");
+                if (!string.IsNullOrWhiteSpace(downloadString))
+                {
+                    var json = JsonConvert.DeserializeObject<CryptoComSymbols>(downloadString);
+                    if (json.code.Equals("0")
+                        && json.data.Count(x => x.symbol == symbol.ToLower()) > 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                //ignored
+            }
+
+            return false;
         }
 
         private void EditPinMessage(Message sendMessage)
@@ -166,6 +202,38 @@ namespace Quoter.Service
                 //Console.WriteLine($"symbol.price.ToDecimal: {symbol} | {price}");
                 returnObj += $"{symbol.Replace("USDT", string.Empty)} `{Convert.ToDecimal(price)}` | {Environment.NewLine}";
                 Thread.Sleep(200);
+            }
+
+            return returnObj;
+        }
+
+        private static string GetPriceFromCryptoCom(string fromSymbol, string toSymbol)
+        {
+            var returnObj = string.Empty;
+
+            try
+            {
+                var wc = new WebClient();
+                var downloadString = wc.DownloadString("https://api.crypto.com/v1/ticker");
+                if (!string.IsNullOrWhiteSpace(downloadString))
+                {
+                    var json = JsonConvert.DeserializeObject<CryptoComTicker>(downloadString);
+                    if (json.code.Equals("0"))
+                    {
+                        returnObj = $"{json.data.ticker.First(x => x.symbol == fromSymbol.ToLower()).sell.TrimEnd('0').TrimEnd('.')} {toSymbol.ToUpper()} (@Crypto.com)";
+                    }
+                }
+            }
+            catch (WebException we)
+            {
+                using (var sr = new StreamReader(we.Response.GetResponseStream()))
+                {
+                    var json = JsonConvert.DeserializeObject<CryptoComTicker>(sr.ReadToEnd());
+                    if (!json.code.Equals("0"))
+                    {
+                        returnObj = "輸入錯誤，請重新查詢。";
+                    }
+                }
             }
 
             return returnObj;
